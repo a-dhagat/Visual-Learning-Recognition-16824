@@ -83,7 +83,10 @@ class VOCDataset(Dataset):
         findex = self.index_list[index]
         fpath = os.path.join(self.img_dir, findex + '.jpg')
         # TODO: insert your code here. hint: read image, find the labels and weight.
-
+        img = Image.open(fpath)
+        lab_vec = self.anno_list[findex][0]
+        wgt_vec = self.anno_list[findex][1]
+         
         image = torch.FloatTensor(img)
         label = torch.FloatTensor(lab_vec)
         wgt = torch.FloatTensor(wgt_vec)
