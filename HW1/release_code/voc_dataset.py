@@ -13,7 +13,7 @@ import torch.nn
 from PIL import Image
 from torch.utils.data import Dataset
 
-
+import ipdb; ipdb.set_trace()
 class VOCDataset(Dataset):
     CLASS_NAMES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car',
                    'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike',
@@ -57,6 +57,18 @@ class VOCDataset(Dataset):
             fpath = os.path.join(self.ann_dir, index + '.xml')
             tree = ET.parse(fpath)
             # TODO: insert your code here, preload labels
+            label = np.zeros(20)
+            weight = np.ones(20)
+            root = tree.getroot()
+            for attr_idx in range(len(root)):
+                if root[attr_idx] == 'object':
+                    class_idx = INV_CLASS[root[i][0].text]
+                    label[class_idx] = 1
+                    difficult = int(root[i][-2].text)
+                    if difficult == 1:
+                        weight[class_idx] = 0
+            
+            label_list.append([label, weight])
 
         return label_list
 
