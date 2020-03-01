@@ -52,6 +52,7 @@ class VOCDataset(Dataset):
          where both class and weight are a numpy array in shape of [20],
         """
         label_list = []
+        # import ipdb; ipdb.set_trace()
         for index in self.index_list:
             fpath = os.path.join(self.ann_dir, index + '.xml')
             tree = ET.parse(fpath)
@@ -60,12 +61,13 @@ class VOCDataset(Dataset):
             weight = np.ones(20)
             root = tree.getroot()
             for attr_idx in range(len(root)):
-                if root[attr_idx] == 'object':
-                    class_idx = INV_CLASS[root[i][0].text]
-                    label[class_idx] = 1
-                    difficult = int(root[i][-2].text)
-                    if difficult == 1:
-                        weight[class_idx] = 0
+                if root[attr_idx].tag == 'object':
+                    # class_idx = INV_CLASS[root[i][0].text]
+                    class_idx = self.get_class_index(root[attr_idx][0].text)
+                    label[class_idx] = 1.0
+                    difficult = (root[attr_idx][-2].text)
+                    if (difficult) == '1.0':
+                        weight[class_idx] = 0.0
             
             label_list.append([label, weight])
 
