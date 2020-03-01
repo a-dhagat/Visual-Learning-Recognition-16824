@@ -86,7 +86,12 @@ class VOCDataset(Dataset):
         img = Image.open(fpath)
         lab_vec = self.anno_list[findex][0]
         wgt_vec = self.anno_list[findex][1]
-         
+
+        # Canonical image resizing
+        new_size = (256,256)
+        img = img.resize(new_size)
+        img = np.array(img)
+        
         image = torch.FloatTensor(img)
         label = torch.FloatTensor(lab_vec)
         wgt = torch.FloatTensor(wgt_vec)
