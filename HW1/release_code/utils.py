@@ -19,7 +19,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Assignment 1')
     # config for dataset
 
-    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=16, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
@@ -101,8 +101,10 @@ def eval_dataset_map(model, device, test_loader):
     with torch.no_grad():
         for data, target, wgt in test_loader:
             ## TODO insert your code here
-            pass
-    AP = compute_ap(gt, pred, valid)
+            pred = model(data.to(device))
+            # pass
+    # AP = compute_ap(gt, pred, valid)
+    AP = compute_ap(target, pred, wgt)
 
     mAP = np.mean(AP)
     return AP, mAP
