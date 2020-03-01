@@ -13,6 +13,7 @@ from voc_dataset import VOCDataset
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
+
 class SimpleCNN(nn.Module):
     """
     Model definition
@@ -53,6 +54,7 @@ class SimpleCNN(nn.Module):
         x = self.pool2(x)
 
         # TODO: q0.1 hint (you might want to check the dimension of input here)
+        # import ipdb; ipdb.set_trace()
         self.flat_dim = x.size(1)*x.size(2)*x.size(3)
         flat_x = x.view(N, self.flat_dim)
         out = self.fc1(flat_x)
@@ -123,12 +125,15 @@ def main():
                 # todo: add your visualization code
                 print('Train Epoch: {} [{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, cnt, 100. * batch_idx / len(train_loader), loss.item()))
+            # print('Batch idx: {} \r'.format(batch_idx), end='')
             # Validation iteration
             if cnt % args.val_every == 0:
                 model.eval()
+                # print("\n")
                 ap, map = utils.eval_dataset_map(model, device, test_loader)
                 model.train()
             cnt += 1
+
         scheduler.step()
 
     # Validation iteration
