@@ -19,11 +19,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Assignment 1')
     # config for dataset
 
-    parser.add_argument('--batch-size', type=int, default=16, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=20, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+    parser.add_argument('--test-batch-size', type=int, default=512, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=14, metavar='N',
+    parser.add_argument('--epochs', type=int, default=5, metavar='N',
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 1.0)')
@@ -74,6 +74,7 @@ def compute_ap(gt, pred, valid, average=None):
     Returns:
         AP (list): average precision for all classes
     """
+    # import ipdb; ipdb.set_trace()
     nclasses = gt.shape[1]
     AP = []
     for cid in range(nclasses):
@@ -82,6 +83,9 @@ def compute_ap(gt, pred, valid, average=None):
         # As per PhilK. code:
         # https://github.com/philkr/voc-classification/blob/master/src/train_cls.py
         pred_cls -= 1e-5 * gt_cls
+        # print(gt_cls)
+        # print(pred_cls)
+        # quit()
         ap = sklearn.metrics.average_precision_score(
             gt_cls, pred_cls, average=average)
         AP.append(ap)
@@ -98,14 +102,28 @@ def eval_dataset_map(model, device, test_loader):
          AP (list): Average Precision for all classes
          MAP (float): mean average precision
     """
+    AP = []
+    pred_list = []
+    target_list = []
+    wgt_list = []
     with torch.no_grad():
-        for data, target, wgt in test_loader:
+        for idx, (data, target, wgt) in enumerate(test_loader):
             ## TODO insert your code here
+            
             pred = model(data.to(device))
+            pred = torch.sigmoid(pred)
+            # print(np.sum(target.detach().cpu().numpy()))
+            
+            ap = compute_ap(target.detach().cpu().numpy(), pred.detach().cpu().numpy(), wgt.detach().cpu().numpy())
+            AP.append(ap)
+            # print("AP: ", AP)
+            # quit()
+        # AP = compute_ap(np.concatenate(target_list), np.concatenate(pred_list), np.concatenate(wgt_list))
+        # print("AP: ", AP)
+        # AP_List = AP_List + AP
             # pass
     # AP = compute_ap(gt, pred, valid)
-    AP = compute_ap(target, pred, wgt)
-
+    # AP = AP[1:]
     mAP = np.mean(AP)
     return AP, mAP
 
