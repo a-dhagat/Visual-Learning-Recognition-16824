@@ -13,7 +13,6 @@ import torch.nn
 from PIL import Image
 from torch.utils.data import Dataset
 
-import ipdb; ipdb.set_trace()
 class VOCDataset(Dataset):
     CLASS_NAMES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car',
                    'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike',
@@ -80,18 +79,26 @@ class VOCDataset(Dataset):
         label: LongTensor in shape of (Nc, ) binary label
         weight: FloatTensor in shape of (Nc, ) difficult or not.
         """
+        # ipdb.set_trace()
         findex = self.index_list[index]
+        # print("\nIndex:\n", index)
+        # print("findex:\n", int(findex))
+        # print(len(self.anno_list))
+        # print(len(self.index_list))
+        # quit()
         fpath = os.path.join(self.img_dir, findex + '.jpg')
         # TODO: insert your code here. hint: read image, find the labels and weight.
         img = Image.open(fpath)
-        lab_vec = self.anno_list[findex][0]
-        wgt_vec = self.anno_list[findex][1]
+        lab_vec = self.anno_list[index][0]
+        wgt_vec = self.anno_list[index][1]
 
         # Canonical image resizing
         new_size = (256,256)
         img = img.resize(new_size)
         img = np.array(img)
-        
+        img = np.transpose(img, (2,0,1))
+        # print(type(img))
+
         image = torch.FloatTensor(img)
         label = torch.FloatTensor(lab_vec)
         wgt = torch.FloatTensor(wgt_vec)
