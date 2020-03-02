@@ -25,7 +25,7 @@ class SimpleCNN(nn.Module):
         self.conv1 = nn.Conv2d(c_dim, 32, 5, padding=2)
         self.conv2 = nn.Conv2d(32, 64, 5, padding=2)
         # TODO: Modify the code here
-        self.nonlinear = lambda x: x
+        self.nonlinear = lambda x: F.relu(x,inplace=True)
         self.pool1 = nn.AvgPool2d(2, 2)
         self.pool2 = nn.AvgPool2d(2, 2)
 
@@ -94,7 +94,7 @@ def main():
     # bad idea of use simple CNN, but let's give it a shot!
     # In task 2, 3, 4, you might want to modify this line to be configurable to other models.
     # Remember: always reuse your code wisely.
-    model = SimpleCNN(num_classes=len(VOCDataset.CLASS_NAMES), inp_size=64, c_dim=3).to(device)
+    model = SimpleCNN(num_classes=len(VOCDataset.CLASS_NAMES), inp_size=20, c_dim=3).to(device)
     model.train()
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -112,10 +112,11 @@ def main():
             output = model(data)
             # Calculate the loss
             # TODO: your loss for multi-label clf?
-            loss = nn.BCELoss()
+            # loss = nn.BCELoss()
+            loss = nn.MultiLabelSoftMarginLoss()
             # import ipdb; ipdb.set_trace()
-            output = torch.sigmoid(output)
-            loss = loss(output, target)
+            # output = torch.sigmoid(output)
+            loss = loss(output*wgt, target)
             # Calculate gradient w.r.t the loss
             loss.backward()
             # Optimizer takes one step
