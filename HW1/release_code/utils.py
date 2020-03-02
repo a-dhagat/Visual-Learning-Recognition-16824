@@ -21,7 +21,7 @@ def parse_args():
 
     parser.add_argument('--batch-size', type=int, default=20, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--test-batch-size', type=int, default=512, metavar='N',
+    parser.add_argument('--test-batch-size', type=int, default=200, metavar='N',
                         help='input batch size for testing (default: 1000)')
     parser.add_argument('--epochs', type=int, default=5, metavar='N',
                         help='number of epochs to train (default: 14)')
@@ -48,7 +48,7 @@ def parse_args():
 def get_data_loader(name='voc', train=True, batch_size=64, split='train'):
     if name == 'voc':
         from voc_dataset import VOCDataset
-        dataset = VOCDataset(split, 64)
+        dataset = VOCDataset(split, batch_size)
     else:
         raise NotImplementedError
 
@@ -111,7 +111,7 @@ def eval_dataset_map(model, device, test_loader):
             ## TODO insert your code here
             
             pred = model(data.to(device))
-            pred = torch.sigmoid(pred)
+            # pred = torch.sigmoid(pred)
             # print(np.sum(target.detach().cpu().numpy()))
             
             ap = compute_ap(target.detach().cpu().numpy(), pred.detach().cpu().numpy(), wgt.detach().cpu().numpy())
