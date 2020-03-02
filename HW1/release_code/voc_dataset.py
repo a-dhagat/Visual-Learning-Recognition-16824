@@ -51,6 +51,7 @@ class VOCDataset(Dataset):
         :return: a list of lables. each element is in the form of [class, weight],
          where both class and weight are a numpy array in shape of [20],
         """
+        object_less_images = []
         label_list = []
         # import ipdb; ipdb.set_trace()
         for index in self.index_list:
@@ -68,9 +69,15 @@ class VOCDataset(Dataset):
                     difficult = (root[attr_idx][-2].text)
                     if (difficult) == '1.0':
                         weight[class_idx] = 0.0
-            
+            if not(label.any()==1.0):
+                print("Catching!")
+                object_less_images.append(index)
+
             label_list.append([label, weight])
 
+        if(object_less_images != []):
+            print(object_less_images)
+            quit()
         return label_list
 
     def __getitem__(self, index):
