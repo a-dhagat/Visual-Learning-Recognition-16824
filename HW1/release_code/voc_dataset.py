@@ -46,6 +46,40 @@ class VOCDataset(Dataset):
     def __len__(self):
         return len(self.index_list)
 
+    # def preload_anno(self):
+    #     """
+    #     :return: a list of lables. each element is in the form of [class, weight],
+    #      where both class and weight are a numpy array in shape of [20],
+    #     """
+    #     object_less_images = []
+    #     label_list = []
+    #     # import ipdb; ipdb.set_trace()
+    #     for index in self.index_list:
+    #         fpath = os.path.join(self.ann_dir, index + '.xml')
+    #         tree = ET.parse(fpath)
+    #         # TODO: insert your code here, preload labels
+    #         label = np.zeros(20)
+    #         weight = np.ones(20)
+    #         root = tree.getroot()
+    #         for attr_idx in range(len(root)):
+    #             if root[attr_idx].tag == 'object':
+    #                 # class_idx = INV_CLASS[root[i][0].text]
+    #                 class_idx = self.get_class_index(root[attr_idx][0].text)
+    #                 label[class_idx] = 1.0
+    #                 difficult = (root[attr_idx][-2].text)
+    #                 if (difficult) == '1.0':
+    #                     weight[class_idx] = 0.0
+    #         if not(label.any()==1.0):
+    #             print("Catching!")
+    #             object_less_images.append(index)
+
+    #         label_list.append([label, weight])
+
+    #     if(object_less_images != []):
+    #         print(object_less_images)
+    #         quit()
+    #     return label_list
+
     def preload_anno(self):
         """
         :return: a list of lables. each element is in the form of [class, weight],
@@ -61,14 +95,31 @@ class VOCDataset(Dataset):
             label = np.zeros(20)
             weight = np.ones(20)
             root = tree.getroot()
+
+            objects = []
+            diff = []
             for attr_idx in range(len(root)):
                 if root[attr_idx].tag == 'object':
-                    # class_idx = INV_CLASS[root[i][0].text]
-                    class_idx = self.get_class_index(root[attr_idx][0].text)
-                    label[class_idx] = 1.0
+                    obj_name = root[attr_idx][0].text
                     difficult = (root[attr_idx][-2].text)
-                    if (difficult) == '1.0':
-                        weight[class_idx] = 0.0
+                    objects.append(obj_name)
+                    diff.append(difficult)
+
+            object_set = set(objects)
+            objects = np.array(objects)
+            diff = np.array(diff)
+
+            for obj in object_set:
+                idxs = np.where(objects==obj)[0]
+                obj_diff = diff[idxs]
+                obj_diff = np.where(obj_diff=='1.0', True, False)
+
+                class_idx = self.get_class_index(obj)
+                label[class_idx] = 1.0
+
+                if obj_diff.all() == True:
+                    weight[class_idx] = 0.0
+            
             if not(label.any()==1.0):
                 print("Catching!")
                 object_less_images.append(index)
