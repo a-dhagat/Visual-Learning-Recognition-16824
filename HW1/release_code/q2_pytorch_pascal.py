@@ -100,6 +100,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=args.gamma)
+    loss = nn.MultiLabelSoftMarginLoss()
     cnt = 0
     for epoch in range(args.epochs):
 
@@ -113,10 +114,9 @@ def main():
             # Calculate the loss
             # TODO: your loss for multi-label clf?
             # loss = nn.BCELoss()
-            loss = nn.MultiLabelSoftMarginLoss()
             # import ipdb; ipdb.set_trace()
             # output = torch.sigmoid(output)
-            loss = loss(output*wgt, target)
+            loss = loss(output*wgt, wgt*target)
             # Calculate gradient w.r.t the loss
             loss.backward()
             # Optimizer takes one step
