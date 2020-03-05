@@ -12,6 +12,7 @@ import torch
 import torch.nn
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision import transforms
 
 class VOCDataset(Dataset):
     CLASS_NAMES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car',
@@ -34,6 +35,26 @@ class VOCDataset(Dataset):
             self.index_list = [line.strip() for line in fp]
 
         self.anno_list = self.preload_anno()
+        if split == 'train' or 'trainval':
+            self.img_transforms = transforms.Compose(
+                [
+                    transforms.Resize(256),
+                    transforms.RandomCrop(227),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.485,0.456,0.406),(0.229,0.224,0.225))
+                ]
+                )
+        if split == 'test':
+            self.img_transforms = transforms.Compose(
+                [
+                    transforms.Resize(256),
+                    transforms.CenterCrop(227),
+                    # transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.485,0.456,0.406),(0.229,0.224,0.225))
+                ]
+                )
 
     @classmethod
     def get_class_name(cls, index):
@@ -153,13 +174,14 @@ class VOCDataset(Dataset):
         wgt_vec = self.anno_list[index][1]
 
         # Canonical image resizing
-        new_size = (256,256)
-        img = img.resize(new_size)
-        img = np.array(img)
-        img = np.transpose(img, (2,0,1))
+        # new_size = (256,256)
+        # img = img.resize(new_size)
+        # img = np.array(img)
+        # img = np.transpose(img, (2,0,1))
         # print(type(img))
 
-        image = torch.FloatTensor(img)
+        image = torch.FloatTensor(self.img_transforms(img))
+        # image = torch.FloatTensor((img))
         label = torch.FloatTensor(lab_vec)
         wgt = torch.FloatTensor(wgt_vec)
         return image, label, wgt
