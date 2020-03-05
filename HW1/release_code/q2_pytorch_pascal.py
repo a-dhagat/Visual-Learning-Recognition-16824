@@ -100,7 +100,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=args.gamma)
-    loss = nn.MultiLabelSoftMarginLoss()
+    loss_obj = nn.MultiLabelSoftMarginLoss()
     cnt = 0
     for epoch in range(args.epochs):
 
@@ -116,7 +116,7 @@ def main():
             # loss = nn.BCELoss()
             # import ipdb; ipdb.set_trace()
             # output = torch.sigmoid(output)
-            loss = loss(output*wgt, wgt*target)
+            loss = loss_obj(output*wgt, wgt*target)
             # Calculate gradient w.r.t the loss
             loss.backward()
             # Optimizer takes one step
