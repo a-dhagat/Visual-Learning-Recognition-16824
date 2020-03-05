@@ -10,9 +10,11 @@ from voc_dataset import VOCDataset
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
+from tensorboardX import SummaryWriter
+
 
 class CaffeNet(nn.Module):
-    def __init__(self, num_classes=20, inp_size=256, c_dim=3):
+    def __init__(self, num_classes=20, inp_size=227, c_dim=3):
         '''
         -------ConvLayer-------
         conv(kernel_size, stride, out_channels, padding)
@@ -51,7 +53,7 @@ class CaffeNet(nn.Module):
         self.conv5 = nn.Conv2d(384, 256, 3, 1, padding=1)  # conv(3,1,256,same)
         self.non_linear = lambda x: F.relu(x, inplace=True)
         self.pool = nn.MaxPool2d(3,2)
-        self.flat_dim = (6*6*256)
+        self.flat_dim = 256*6*6
         self.dropout = nn.Dropout(0.5,inplace=True)
         self.fc1 = nn.Sequential(*get_fc(self.flat_dim, 4096, 'relu'))
         self.fc2 = nn.Sequential(*get_fc(4096, 4096, 'relu'))
@@ -76,9 +78,11 @@ class CaffeNet(nn.Module):
         x = self.conv5(x)
         x = self.non_linear(x)
         x = self.pool(x)
-        flat_x = x.view(N, self.flat_dim)
+        flat_x = x.view(N, -1)
         out = self.fc1(flat_x)
+        out = self.dropout(out)
         out = self.fc2(out)
+        out = self.dropout(out)
         out = self.fc3(out)
         return out
 
@@ -106,6 +110,7 @@ def get_fc(inp_dim, out_dim, non_linear='relu'):
 
 def main():
     # TODO:  Initialize your visualizer here!
+    writer = SummaryWriter('../runs/q2_caffe')
     # TODO: complete your dataloader in voc_dataset.py
     # import ipdb; ipdb.set_trace()
     train_loader = utils.get_data_loader('voc', train=True, batch_size=args.batch_size, split='trainval')
@@ -116,7 +121,7 @@ def main():
     # bad idea of use simple CNN, but let's give it a shot!
     # In task 2, 3, 4, you might want to modify this line to be configurable to other models.
     # Remember: always reuse your code wisely.
-    model = CaffeNet(num_classes=len(VOCDataset.CLASS_NAMES), inp_size=20, c_dim=3).to(device)
+    model = CaffeNet(num_classes=len(VOCDataset.CLASS_NAMES), inp_size=227, c_dim=3).to(device)
     model.train()
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -148,12 +153,16 @@ def main():
                 # todo: add your visualization code
                 print('Train Epoch: {} [{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, cnt, 100. * batch_idx / len(train_loader), loss.item()))
+                writer.add_scalar('Loss/train: ', loss.item(), cnt)
+                if epoch%10 == 0:
+                    torch.save(model.state_dict(), "../q2_caffe_models/model_at_epoch_" + str(epoch) + ".pth")
             # print('Batch idx: {} \r'.format(batch_idx), end='')
             # Validation iteration
             if cnt % args.val_every == 0:
                 model.eval()
                 # print("\n")
                 ap, map = utils.eval_dataset_map(model, device, test_loader)
+                writer.add_scalar('Validation mAP: ', map, cnt)
                 model.train()
             cnt += 1
 
@@ -166,6 +175,8 @@ def main():
     print('----test-----')
     print(ap)
     print('mAP: ', map)
+    writer.add_scalar('Testing mAP: ', map, cnt)
+    writer.close()
 
 
 if __name__ == '__main__':
