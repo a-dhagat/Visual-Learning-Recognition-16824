@@ -23,7 +23,7 @@ def parse_args():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=200, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=5, metavar='N',
+    parser.add_argument('--epochs', type=int, default=50, metavar='N',
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 1.0)')
@@ -33,7 +33,7 @@ def parse_args():
                         help='disables CUDA training')
     parser.add_argument('--log_every', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--val_every', type=int, default=100, metavar='N',
+    parser.add_argument('--val_every', type=int, default=250, metavar='N',
                         help='how many batches to wait before evaluating model')
 
     parser.add_argument('--save-model', action='store_true', default=False,
@@ -48,7 +48,7 @@ def parse_args():
 def get_data_loader(name='voc', train=True, batch_size=64, split='train'):
     if name == 'voc':
         from voc_dataset import VOCDataset
-        dataset = VOCDataset(split, batch_size)
+        dataset = VOCDataset(split, 227)
     else:
         raise NotImplementedError
 
