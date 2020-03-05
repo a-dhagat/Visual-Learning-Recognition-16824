@@ -28,7 +28,7 @@ class SimpleCNN(nn.Module):
         self.conv1 = nn.Conv2d(c_dim, 32, 5, padding=2)
         self.conv2 = nn.Conv2d(32, 64, 5, padding=2)
         # TODO: Modify the code here
-        self.nonlinear = lambda x: x
+        self.nonlinear = lambda x: F.relu(x)
         self.pool1 = nn.AvgPool2d(2, 2)
         self.pool2 = nn.AvgPool2d(2, 2)
 
