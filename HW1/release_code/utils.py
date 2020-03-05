@@ -23,7 +23,7 @@ def parse_args():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=200, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=50, metavar='N',
+    parser.add_argument('--epochs', type=int, default=5, metavar='N',
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 1.0)')
@@ -33,7 +33,7 @@ def parse_args():
                         help='disables CUDA training')
     parser.add_argument('--log_every', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--val_every', type=int, default=250, metavar='N',
+    parser.add_argument('--val_every', type=int, default=100, metavar='N',
                         help='how many batches to wait before evaluating model')
 
     parser.add_argument('--save-model', action='store_true', default=False,
@@ -113,17 +113,20 @@ def eval_dataset_map(model, device, test_loader):
             pred = model(data.to(device))
             # pred = torch.sigmoid(pred)
             # print(np.sum(target.detach().cpu().numpy()))
-            
-            ap = compute_ap(target.detach().cpu().numpy(), pred.detach().cpu().numpy(), wgt.detach().cpu().numpy())
-            AP.append(ap)
+            pred_list.append(pred.detach().cpu().numpy())
+            target_list.append(target.detach().cpu().numpy())
+            wgt_list.append(wgt.detach().cpu().numpy())
+            # ap = compute_ap(target.detach().cpu().numpy(), pred.detach().cpu().numpy(), wgt.detach().cpu().numpy())
+            # AP.append(ap)
             # print("AP: ", AP)
             # quit()
-        # AP = compute_ap(np.concatenate(target_list), np.concatenate(pred_list), np.concatenate(wgt_list))
+        AP = compute_ap(np.concatenate(target_list), np.concatenate(pred_list), np.concatenate(wgt_list))
         # print("AP: ", AP)
         # AP_List = AP_List + AP
             # pass
+        # compute_ap()
     # AP = compute_ap(gt, pred, valid)
     # AP = AP[1:]
-    mAP = np.mean(AP)
+        mAP = np.mean(AP)
     return AP, mAP
 
