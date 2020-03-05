@@ -13,6 +13,8 @@ from voc_dataset import VOCDataset
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
+# from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 
 class SimpleCNN(nn.Module):
     """
@@ -30,13 +32,15 @@ class SimpleCNN(nn.Module):
         self.pool2 = nn.AvgPool2d(2, 2)
 
         # TODO: q0.1 Modify the code here
-        self.flat_dim = 262144
+        # self.flat_dim = 262144
+        self.flat_dim = int((inp_size*inp_size*64)/16)
         # chain your layers by Sequential -- another way
         # TODO: Modify the code here
         self.fc1 = nn.Sequential(*get_fc(self.flat_dim, 128, 'none'))
         
         # Changed activation from softmax to none
         self.fc2 = nn.Sequential(*get_fc(128, num_classes, 'none'))
+        
 
     def forward(self, x):
         """
@@ -56,7 +60,7 @@ class SimpleCNN(nn.Module):
         # TODO: q0.1 hint (you might want to check the dimension of input here)
         # import ipdb; ipdb.set_trace()
         self.flat_dim = x.size(1)*x.size(2)*x.size(3)
-        flat_x = x.view(N, self.flat_dim)
+        flat_x = x.view(N, -1)
         out = self.fc1(flat_x)
         out = self.fc2(out)
         return out
@@ -84,6 +88,7 @@ def get_fc(inp_dim, out_dim, non_linear='relu'):
 
 def main():
     # TODO:  Initialize your visualizer here!
+    writer = SummaryWriter('runs/q1')
     # TODO: complete your dataloader in voc_dataset.py
     # import ipdb; ipdb.set_trace()
     train_loader = utils.get_data_loader('voc', train=True, batch_size=args.batch_size, split='trainval')
@@ -94,7 +99,7 @@ def main():
     # bad idea of use simple CNN, but let's give it a shot!
     # In task 2, 3, 4, you might want to modify this line to be configurable to other models.
     # Remember: always reuse your code wisely.
-    model = SimpleCNN(num_classes=len(VOCDataset.CLASS_NAMES), inp_size=20, c_dim=3).to(device)
+    model = SimpleCNN(num_classes=len(VOCDataset.CLASS_NAMES), inp_size=64, c_dim=3).to(device)
     model.train()
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -126,12 +131,14 @@ def main():
                 # todo: add your visualization code
                 print('Train Epoch: {} [{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, cnt, 100. * batch_idx / len(train_loader), loss.item()))
+                writer.add_scalar('Loss/train: ', loss.item(), cnt)
             # print('Batch idx: {} \r'.format(batch_idx), end='')
             # Validation iteration
             if cnt % args.val_every == 0:
                 model.eval()
                 # print("\n")
                 ap, map = utils.eval_dataset_map(model, device, test_loader)
+                writer.add_scalar('Validation mAP: ', map, cnt)
                 model.train()
             cnt += 1
 
@@ -144,6 +151,8 @@ def main():
     print('----test-----')
     print(ap)
     print('mAP: ', map)
+    writer.add_scalar('Testing mAP: ', map, cnt)
+    writer.close()
 
 
 if __name__ == '__main__':
