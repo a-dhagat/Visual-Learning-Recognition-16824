@@ -1,3 +1,7 @@
-1. Transform images
-2. Mean subtraction
-3. Change compute_ap to take lists as input and return single numbers at output
+ToDo --
+1. Transform images - randomcrop to 227, don't resize to 256.
+4. Gamma=0.9
+
+Done--
+2. Mean subtraction - Done
+3. Change compute_ap to take lists as input and return single numbers at output - Done
