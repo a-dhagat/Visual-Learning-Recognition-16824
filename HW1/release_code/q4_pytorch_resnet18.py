@@ -15,7 +15,7 @@ from tensorboardX import SummaryWriter
 
 def main():
     # TODO:  Initialize your visualizer here!
-    writer = SummaryWriter('../runs/q3_resnet18')
+    writer = SummaryWriter('../runs/q4_resnet18')
     # TODO: complete your dataloader in voc_dataset.py
     # import ipdb; ipdb.set_trace()
     train_loader = utils.get_data_loader('voc', train=True, batch_size=args.batch_size, split='trainval')
@@ -62,8 +62,8 @@ def main():
                 print('Train Epoch: {} [{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, cnt, 100. * batch_idx / len(train_loader), loss.item()))
                 writer.add_scalar('Loss/train: ', loss.item(), cnt)
-                if epoch%10 == 0:
-                    torch.save(model.state_dict(), "../q3_resnet18_models/model_at_epoch_" + str(epoch) + ".pth")
+                if epoch%1 == 0:
+                    torch.save(model.state_dict(), "../q4_resnet18_models/model_at_epoch_" + str(epoch) + ".pth")
             # print('Batch idx: {} \r'.format(batch_idx), end='')
             # Validation iteration
             if cnt % args.val_every == 0:
