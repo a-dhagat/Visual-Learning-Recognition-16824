@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 
-
+import numpy as np
 # -- Modifying torch and cuda to work on local system
 torch.cuda.current_device()
 import ipdb;
@@ -129,8 +129,18 @@ def main():
                            100. * batch_idx / len(train_loader), loss.item()))
                 train_log['iter'].append(cnt)
                 train_log['loss'].append(loss)
+                # ipdb.set_trace()
                 # TODO: calculate your train accuracy!
-                # train_log['accuracy'].append(train_acc)
+                acc_count = 0
+                for pred_ex, targ_ex in zip(output,target):
+                    pred_ex, targ_ex = pred_ex.detach().cpu().numpy(), targ_ex.detach().cpu().numpy()
+                    pred = np.argmax(pred_ex)
+
+                    if pred==targ_ex:
+                        acc_count += 1
+
+                train_acc = acc_count/target.detach().cpu().numpy().shape[0]
+                train_log['accuracy'].append(train_acc)
             # Validation iteration
             if cnt % args.val_every == 0:
                 test_loss, test_acc = test(model, device, test_loader)
@@ -148,12 +158,12 @@ def main():
     # ipdb.set_trace()
     
     #-- Switching off until completing TODO: train accuracy
-    # fig = plt.figure()
-    # plt.plot(train_log['iter'], train_log['accuracy'], 'r', label='Training')
-    # plt.plot(test_log['iter'], test_log['accuracy'], 'b', label='Testing')
-    # plt.title('Accuracy')
-    # plt.legend()
-    # plt.show()
+    fig = plt.figure()
+    plt.plot(train_log['iter'], train_log['accuracy'], 'r', label='Training')
+    plt.plot(test_log['iter'], test_log['accuracy'], 'b', label='Testing')
+    plt.title('Accuracy')
+    plt.legend()
+    plt.show()
     #--
 
 
@@ -189,7 +199,7 @@ def parse_args():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=100, metavar='N',
+    parser.add_argument('--epochs', type=int, default=5, metavar='N',
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=1.0, metavar='LR',
                         help='learning rate (default: 1.0)')
