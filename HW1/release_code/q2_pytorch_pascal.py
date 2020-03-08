@@ -20,7 +20,7 @@ class SimpleCNN(nn.Module):
     """
     Model definition
     """
-    def __init__(self, num_classes=20, inp_size=256, c_dim=3):
+    def __init__(self, num_classes=20, inp_size=64, c_dim=3):
         super().__init__()
         self.num_classes = num_classes
         # add your layer one by one -- one way to add layers
@@ -88,7 +88,7 @@ def get_fc(inp_dim, out_dim, non_linear='relu'):
 
 def main():
     # TODO:  Initialize your visualizer here!
-    writer = SummaryWriter('runs/q1')
+    writer = SummaryWriter('../runs/q1')
     # TODO: complete your dataloader in voc_dataset.py
     # import ipdb; ipdb.set_trace()
     train_loader = utils.get_data_loader('voc', train=True, batch_size=args.batch_size, split='trainval')
