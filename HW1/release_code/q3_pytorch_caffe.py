@@ -110,7 +110,7 @@ def get_fc(inp_dim, out_dim, non_linear='relu'):
 
 def main():
     # TODO:  Initialize your visualizer here!
-    writer = SummaryWriter('../runs/q2_caffe')
+    writer = SummaryWriter('../runs/q2_caffe_gam=0.9_changedTransform')
     # TODO: complete your dataloader in voc_dataset.py
     # import ipdb; ipdb.set_trace()
     train_loader = utils.get_data_loader('voc', train=True, batch_size=args.batch_size, split='trainval')
@@ -149,13 +149,13 @@ def main():
             # Optimizer takes one step
             optimizer.step()
             # Log info
+            if epoch%10 == 0:
+                torch.save(model.state_dict(), "../q2_caffe_models_v1/model_at_epoch_" + str(epoch) + ".pth")
             if cnt % args.log_every == 0:
                 # todo: add your visualization code
                 print('Train Epoch: {} [{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, cnt, 100. * batch_idx / len(train_loader), loss.item()))
                 writer.add_scalar('Loss/train: ', loss.item(), cnt)
-                if epoch%10 == 0:
-                    torch.save(model.state_dict(), "../q2_caffe_models/model_at_epoch_" + str(epoch) + ".pth")
             # print('Batch idx: {} \r'.format(batch_idx), end='')
             # Validation iteration
             if cnt % args.val_every == 0:
