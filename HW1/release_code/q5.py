@@ -56,13 +56,12 @@ def main():
     #     pickle.dump(response_list, file)
 
 
-    with open("/home/biorobotics/VLR/Visual-Learning-Recognition-16824/HW1/resnet_feat.txt", "rb") as file:   # Unpickling
+    with open("/home/biorobotics/VLR/Visual-Learning-Recognition-16824/HW1/resnet_feat.txt", "rb") as file: 
         response_list = pickle.load(file)
-
     # print(response_list[0].view(-1))
     response_list_2d = []
     for i in range(len(response_list)):
-        print(i)
+        # print(i)
         response_list_2d.append(response_list[i].view(-1).detach().cpu().numpy())
 
     # print(np.shape(response_list_2d))
