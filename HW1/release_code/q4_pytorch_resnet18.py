@@ -10,12 +10,13 @@ import torchvision.models as models
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
+import torchvision.utils
 from tensorboardX import SummaryWriter
 
 
 def main():
     # TODO:  Initialize your visualizer here!
-    writer = SummaryWriter('../runs/q4_resnet18')
+    writer = SummaryWriter('../runs/q4_resnet18_gam=0.9_changedTransform_images')
     # TODO: complete your dataloader in voc_dataset.py
     # import ipdb; ipdb.set_trace()
     train_loader = utils.get_data_loader('voc', train=True, batch_size=args.batch_size, split='trainval')
@@ -42,7 +43,11 @@ def main():
         for batch_idx, (data, target, wgt) in enumerate(train_loader):
             # Get a batch of data
             data, target, wgt = data.to(device), target.to(device), wgt.to(device)
+            
             # import ipdb; ipdb.set_trace()
+            img_grid = torchvision.utils.make_grid(data[:4])
+            writer.add_image('training_images', img_grid)
+            
             optimizer.zero_grad()
             # Forward pass
             output = model(data)
@@ -63,7 +68,7 @@ def main():
                     epoch, cnt, 100. * batch_idx / len(train_loader), loss.item()))
                 writer.add_scalar('Loss/train: ', loss.item(), cnt)
                 if epoch%1 == 0:
-                    torch.save(model.state_dict(), "../q4_resnet18_models/model_at_epoch_" + str(epoch) + ".pth")
+                    torch.save(model.state_dict(), "../q4_resnet18_models_v1_img/model_at_epoch_" + str(epoch) + ".pth")
             # print('Batch idx: {} \r'.format(batch_idx), end='')
             # Validation iteration
             if cnt % args.val_every == 0:
