@@ -19,15 +19,15 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Assignment 1')
     # config for dataset
 
-    parser.add_argument('--batch-size', type=int, default=20, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--test-batch-size', type=int, default=200, metavar='N',
+    parser.add_argument('--test-batch-size', type=int, default=32, metavar='N',
                         help='input batch size for testing (default: 1000)')
     parser.add_argument('--epochs', type=int, default=5, metavar='N',
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 1.0)')
-    parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
+    parser.add_argument('--gamma', type=float, default=0.9, metavar='M',
                         help='Learning rate step gamma (default: 0.7)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
@@ -38,6 +38,8 @@ def parse_args():
 
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
+    parser.add_argument('--flag', action='store_true', default=False,
+                        help='For Saving the current Model')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
@@ -46,6 +48,8 @@ def parse_args():
 
 
 def get_data_loader(name='voc', train=True, batch_size=64, split='train'):
+    flag = 1
+
     if name == 'voc':
         from voc_dataset import VOCDataset
         dataset = VOCDataset(split, 227)
@@ -58,7 +62,11 @@ def get_data_loader(name='voc', train=True, batch_size=64, split='train'):
         shuffle=train,
         num_workers=4,
     )
-    return loader
+    if (flag==1):
+        return loader
+    
+    else:
+        return loader, dataset.index_list
 
 
 def compute_ap(gt, pred, valid, average=None):
