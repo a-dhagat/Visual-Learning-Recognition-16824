@@ -1,6 +1,7 @@
 import torch.utils.data as data
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
+import torch.nn.functional as F
 model_urls = {
         'alexnet': 'https://download.pytorch.org/models/alexnet-owt-4df8aa71.pth',
 }
@@ -30,20 +31,24 @@ def find_classes(imdb):
     #TODO: classes: list of classes
     #TODO: class_to_idx: dictionary with keys=classes and values=class index
     #If you did Task 0, you should know how to set these values from the imdb
-
-
-
-
-
+    classes = imdb._classes
+    class_to_idx = imdb._class_to_ind
     return classes, class_to_idx
 
 
 def make_dataset(imdb, class_to_idx):
     #TODO: return list of (image path, list(+ve class indices)) tuples
     #You will be using this in IMDBDataset
-
-
-
+    dataset_list = []
+    image_index = imdb._load_image_set_index()
+    # img_path = []
+    # class_indices = []
+    for idx in image_index:
+        img_path = imdb.image_path_from_index(idx)
+        annotations = imdb._load_pascal_annotation(idx)
+        class_indices = annotations['gt_classes']
+        # class_indices.append(annotation['gt_classes'])
+        dataset_list.append((img_path, class_indices))
 
     return dataset_list
 
@@ -77,35 +82,54 @@ class LocalizerAlexNet(nn.Module):
     def __init__(self, num_classes=20):
         super(LocalizerAlexNet, self).__init__()
         #TODO: Define model
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=(11,11), stride=(4,4), padding=(2,2))
+        self.relu1 = lambda x: F.relu(x, inplace=True)
+        self.maxpool1 = nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False)
+        self.conv2 = nn.Conv2d(64, 192, kernel_size=(5,5), stride=(1,1), padding=(2,2))
+        self.relu2 = lambda x: F.relu(x, inplace=True)
+        self.maxpool2 = nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False)
+        self.conv3 = nn.Conv2d(192, 384, kernel_size=(3,3), stride=(1,1), padding=(1,1))
+        self.relu3 = lambda x: F.relu(x, inplace=True)
+        self.conv4 = nn.Conv2d(284, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1))
+        self.relu4 = lambda x: F.relu(x, inplace=True)
+        self.conv5 = nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1))
+        self.relu5 = lambda x: F.relu(x, inplace=True)
 
+        self.conv6 = nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1))
+        self.relu6 = lambda x: F.relu(x, inplace=True)
+        self.conv7 = nn.Conv2d(256, 256, kernel_size=(1,1), stride=(1,1))
+        self.relu7 = lambda x: F.relu(x, inplace=True)
+        self.conv8 = nn.Conv2d(256, 20, kernel_size=(1,1), stride=(1,1))
 
+        self.features = nn.Sequential(
+            self.conv1,
+            self.relu1,
+            self.maxpool1,
+            self.conv2,
+            self.relu2,
+            self.maxpool2,
+            self.conv3,
+            self.relu3,
+            self.conv4,
+            self.relu4,
+            self.conv5,
+            self.relu5,
+        )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+        self.classifier = nn.Sequential(
+            self.conv6,
+            self.relu6,
+            self.conv7,
+            self.relu7,
+            self.conv8,
+        )
 
 
     def forward(self, x):
         #TODO: Define forward pass
-
-
-
-
-
-
-
+        x = self.features(x)
+        x = self.classifier(x)
         return x
-
 
 
 
@@ -148,13 +172,6 @@ def localizer_alexnet(pretrained=False, **kwargs):
     model = LocalizerAlexNet(**kwargs)
     #TODO: Initialize weights correctly based on whethet it is pretrained or
     # not
-
-
-
-
-
-
-
 
 
     return model
