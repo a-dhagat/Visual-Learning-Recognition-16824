@@ -82,46 +82,53 @@ class LocalizerAlexNet(nn.Module):
     def __init__(self, num_classes=20):
         super(LocalizerAlexNet, self).__init__()
         #TODO: Define model
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=(11,11), stride=(4,4), padding=(2,2))
-        self.relu1 = lambda x: F.relu(x, inplace=True)
-        self.maxpool1 = nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False)
-        self.conv2 = nn.Conv2d(64, 192, kernel_size=(5,5), stride=(1,1), padding=(2,2))
-        self.relu2 = lambda x: F.relu(x, inplace=True)
-        self.maxpool2 = nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False)
-        self.conv3 = nn.Conv2d(192, 384, kernel_size=(3,3), stride=(1,1), padding=(1,1))
-        self.relu3 = lambda x: F.relu(x, inplace=True)
-        self.conv4 = nn.Conv2d(284, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1))
-        self.relu4 = lambda x: F.relu(x, inplace=True)
-        self.conv5 = nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1))
-        self.relu5 = lambda x: F.relu(x, inplace=True)
+        # self.conv1 = nn.Conv2d(3, 64, kernel_size=(11,11), stride=(4,4), padding=(2,2))
+        # self.relu1 = lambda x: F.relu(x, inplace=True)
+        # self.maxpool1 = nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False)
+        # self.conv2 = nn.Conv2d(64, 192, kernel_size=(5,5), stride=(1,1), padding=(2,2))
+        # self.relu2 = lambda x: F.relu(x, inplace=True)
+        # self.maxpool2 = nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False)
+        # self.conv3 = nn.Conv2d(192, 384, kernel_size=(3,3), stride=(1,1), padding=(1,1))
+        # self.relu3 = lambda x: F.relu(x, inplace=True)
+        # self.conv4 = nn.Conv2d(384, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1))
+        # self.relu4 = lambda x: F.relu(x, inplace=True)
+        # self.conv5 = nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1))
+        # self.relu5 = lambda x: F.relu(x, inplace=True)
 
-        self.conv6 = nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1))
-        self.relu6 = lambda x: F.relu(x, inplace=True)
-        self.conv7 = nn.Conv2d(256, 256, kernel_size=(1,1), stride=(1,1))
-        self.relu7 = lambda x: F.relu(x, inplace=True)
-        self.conv8 = nn.Conv2d(256, 20, kernel_size=(1,1), stride=(1,1))
+        # self.conv6 = nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1))
+        # self.relu6 = lambda x: F.relu(x, inplace=True)
+        # self.conv7 = nn.Conv2d(256, 256, kernel_size=(1,1), stride=(1,1))
+        # self.relu7 = lambda x: F.relu(x, inplace=True)
+        # self.conv8 = nn.Conv2d(256, 20, kernel_size=(1,1), stride=(1,1))
 
         self.features = nn.Sequential(
-            self.conv1,
-            self.relu1,
-            self.maxpool1,
-            self.conv2,
-            self.relu2,
-            self.maxpool2,
-            self.conv3,
-            self.relu3,
-            self.conv4,
-            self.relu4,
-            self.conv5,
-            self.relu5,
+            nn.Conv2d(3, 64, kernel_size=(11,11), stride=(4,4), padding=(2,2)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False),
+            nn.Conv2d(64, 192, kernel_size=(5,5), stride=(1,1), padding=(2,2)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False),
+            nn.Conv2d(192, 384, kernel_size=(3,3), stride=(1,1), padding=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.Conv2d(384, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
         )
 
         self.classifier = nn.Sequential(
-            self.conv6,
-            self.relu6,
-            self.conv7,
-            self.relu7,
-            self.conv8,
+            nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.Conv2d(256, 256, kernel_size=(1,1), stride=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.Conv2d(256, 20, kernel_size=(1,1), stride=(1,1)),
         )
 
 
@@ -169,14 +176,51 @@ def localizer_alexnet(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
+    import torchvision
+    from torch.nn.parameter import Parameter
+
     model = LocalizerAlexNet(**kwargs)
     #TODO: Initialize weights correctly based on whethet it is pretrained or
     # not
+    print(pretrained)
+    if pretrained:
+        print("Pretrain true\n")
+        alexnet = torchvision.models.alexnet(pretrained=True)
+        alexnet_pretrained = alexnet.state_dict()
+        
+        """
+        https://discuss.pytorch.org/t/how-to-load-part-of-pre-trained-model/1113
+        """
+        print("Loading features:\n")
+        own_state = model.state_dict()
+        for name, param in alexnet_pretrained.items():
+            if name not in own_state:
+                # print("Not in own state ", name)
+                continue
+            if isinstance(param, Parameter):
+                param = param.data
+        
+            # Only need to retain/copy pretrained weights of features sequential, not classifier sequential
+            if 'features' in name:
+                own_state[name].copy_(param)
+                print(name)
 
+    else:
+        """
+        https://discuss.pytorch.org/t/how-to-fix-define-the-initialization-weights-seed/20156
+        """
 
+        for feature_layer in model.features:
+            if isinstance(feature_layer, nn.Conv2d):
+                nn.init.xavier_normal_(feature_layer.weight.data)
+    
+    for classif_layer in model.classifier:
+        if isinstance(classif_layer, nn.Conv2d):
+            print(classif_layer)
+            nn.init.xavier_normal_(classif_layer.weight.data)
+    
     return model
-
-
+    
 
 
 
@@ -217,6 +261,7 @@ class IMDBDataset(data.Dataset):
         class_to_idx (dict): Dict with items (class_name, class_index).
         imgs (list): List of (image path, list(+ve class indices)) tuples
     """
+    import numpy as np
 
     def __init__(self, imdb, transform=None, target_transform=None,
                  loader=default_loader):
@@ -243,19 +288,28 @@ class IMDBDataset(data.Dataset):
                                    (it can be a numpy array)
         """
         # TODO: Write this function, look at the imagenet code for inspiration
+        
+        # Extract image path and ground_truth classes from dataset_list (imgs)
+        img_path = self.imgs[index][0]
+        gt_classes = self.imgs[index][1]
 
-
-
-
-
-
-
-
-
-
-
-
-
+        # Open image using PIL at img_path
+        img = default_loader(img_path)
+        # img = Image.open(img_path)
+        # img = self.transform(img)
+        
+        # Create a binary vector of classes for img at index
+        import torch
+        target = torch.from_numpy(np.zeros(len(self.classes)))
+        for i in gt_classes:
+            if i < len(self.classes):
+                target[i] = 1.0
+        # target = target.astype(np.uint8)
+        if self.transform is not None:
+            img = self.transform(img)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        
         return img, target
 
     def __len__(self):
