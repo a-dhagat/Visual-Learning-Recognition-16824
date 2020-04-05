@@ -3,9 +3,9 @@ import os
 import shutil
 import time
 import sys
-sys.path.insert(0, 'faster_rcnn')
-import sklearn
-import sklearn.metrics
+sys.path.insert(0, '../faster_rcnn')
+# import sklearn
+# import sklearn.metrics
 
 import torch
 import torch.nn as nn
@@ -20,8 +20,11 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
+
 from datasets.factory import get_imdb
 from custom import *
+
+from tensorboardX import SummaryWriter
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -119,11 +122,15 @@ best_prec1 = 0
 
 
 def main():
+    # import pdb; pdb.set_trace()
+    # torch.manual_seed(42)
+    # np.random.seed(42)
     global args, best_prec1
     args = parser.parse_args()
     args.distributed = args.world_size > 1
 
     # create model
+    print(args.pretrained)
     print("=> creating model '{}'".format(args.arch))
     if args.arch == 'localizer_alexnet':
         model = localizer_alexnet(pretrained=args.pretrained)
@@ -134,15 +141,18 @@ def main():
     model.features = torch.nn.DataParallel(model.features)
     model.cuda()
 
+    """
+    github.com/pytorch/examples/blob/master/imagenet/main.py
+    """
     # TODO:
     # define loss function (criterion) and optimizer
-
-
-
-
-
-
-
+    # criterion = nn.CrossEntropyLoss().cuda()
+    torch.manual_seed(42)
+    np.random.seed(42)
+    criterion = nn.BCELoss().cuda()
+    # criterion = nn.MultiLabelSoftMarginLoss().cuda()
+    # criterion = nn.MultiLabelMarginLoss()
+    optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
 
     # optionally resume from a checkpoint
@@ -205,24 +215,21 @@ def main():
     # TODO: Create loggers for visdom and tboard
     # TODO: You can pass the logger objects to train(), make appropriate
     # modifications to train()
+    writer = SummaryWriter('runs/Task_1.3')
     if args.vis:
         import visdom
-
-
-
-
-
+        vis = visdom.Visdom(port='8097')
 
 
     for epoch in range(args.start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch)
+        train(train_loader, model, criterion, optimizer, epoch, writer)
 
         # evaluate on validation set
         if epoch % args.eval_freq == 0 or epoch == args.epochs - 1:
-            m1, m2 = validate(val_loader, model, criterion)
+            m1, m2 = validate(val_loader, model, criterion, writer)
             score = m1 * m2
             # remember best prec@1 and save checkpoint
             is_best = score > best_prec1
@@ -235,11 +242,18 @@ def main():
                 'optimizer': optimizer.state_dict(),
             }, is_best)
 
+    writer.close()
 
 
 
 #TODO: You can add input arguments if you wish
-def train(train_loader, model, criterion, optimizer, epoch):
+def func_output(output):
+    ksize = (output.size()[-2], output.size()[-1])
+    pool = nn.MaxPool2d(kernel_size=ksize)
+    sigm = nn.Sigmoid()
+    return pool, sigm
+
+def train(train_loader, model, criterion, optimizer, epoch, writer):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -255,31 +269,35 @@ def train(train_loader, model, criterion, optimizer, epoch):
         data_time.update(time.time() - end)
 
         target = target.type(torch.FloatTensor).cuda(async=True)
-        input_var = input
-        target_var = target
+        # target = target.type(torch.LongTensor)
+        input_var = torch.autograd.Variable(input, requires_grad=True)
+        target_var = torch.autograd.Variable(target)
 
         # TODO: Get output from model
+        output = model(input_var)
         # TODO: Perform any necessary functions on the output
+        # import pdb; pdb.set_trace()
+        pool_operator, sigmoid_operator = func_output(output)
+        pooled_output = pool_operator(output)
+        scaled_output = sigmoid_operator(pooled_output)
+        imoutput = scaled_output.squeeze()
+        
         # TODO: Compute loss using ``criterion``
-
-
-
-
+        loss = criterion(imoutput, target_var)
 
         # measure metrics and record loss
-        m1 = metric1(imoutput.data, target)
-        m2 = metric2(imoutput.data, target)
+        m1 = metric1(imoutput.data, target_var)
+        m2 = metric2(imoutput.data, target_var)
+        # import pdb; pdb.set_trace()
         losses.update(loss.data[0], input.size(0))
         avg_m1.update(m1[0], input.size(0))
         avg_m2.update(m2[0], input.size(0))
 
         # TODO:
         # compute gradient and do SGD step
-
-
-
-
-
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -300,7 +318,9 @@ def train(train_loader, model, criterion, optimizer, epoch):
                       loss=losses,
                       avg_m1=avg_m1,
                       avg_m2=avg_m2))
-
+        writer.add_scalar("Loss/Train: ", loss.data[0], i)
+        writer.add_scalar("metric1/Train: ", m1[0], i)
+        writer.add_scalar("metric2/Train: ", m2[0], i)
         #TODO: Visualize things as mentioned in handout
         #TODO: Visualize at appropriate intervals
 
@@ -316,7 +336,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # End of train()
 
 
-def validate(val_loader, model, criterion):
+def validate(val_loader, model, criterion, writer):
     batch_time = AverageMeter()
     losses = AverageMeter()
     avg_m1 = AverageMeter()
@@ -332,19 +352,19 @@ def validate(val_loader, model, criterion):
         target_var = target
 
         # TODO: Get output from model
+        output = model(input_var)
         # TODO: Perform any necessary functions on the output
+        pool_operator, sigmoid_operator = func_output(output)
+        pooled_output = pool_operator(output)
+        scaled_output = sigmoid_operator(pooled_output)
+        imoutput = scaled_output.squeeze()
         # TODO: Compute loss using ``criterion``
-
-
-
-
-
-
-
-
+        loss = criterion(imoutput, target_var)
+        
         # measure metrics and record loss
         m1 = metric1(imoutput.data, target)
         m2 = metric2(imoutput.data, target)
+        # import pdb; pdb.set_trace()
         losses.update(loss.data[0], input.size(0))
         avg_m1.update(m1[0], input.size(0))
         avg_m2.update(m2[0], input.size(0))
@@ -368,9 +388,9 @@ def validate(val_loader, model, criterion):
 
         #TODO: Visualize things as mentioned in handout
         #TODO: Visualize at appropriate intervals
-
-
-
+        writer.add_scalar("Loss/Validation: ", loss.data[0], i)
+        writer.add_scalar("metric1/Validation: ", m1[0], i)
+        writer.add_scalar("metric2/Validation: ", m2[0], i)
 
 
 
@@ -415,12 +435,113 @@ def adjust_learning_rate(optimizer, epoch):
 
 def metric1(output, target):
     # TODO: Ignore for now - proceed till instructed
-    return [0]
+    from sklearn.metrics import average_precision_score
+    # import pdb; pdb.set_trace()
+    
+    # Hyperparameter: threshold -- probability at which a predicted_class is labelled 0 or 1
+    thresh = 0.5
+    AP = []
+    nclasses = target.shape[1]
+    for cid in range(nclasses):
+        pred_class = output[:,cid].detach().cpu().numpy()
+        gt_class = target[:,cid].detach().cpu().numpy()
+
+        # If class cid does not appear in gt of any of the batches
+        if not np.any(gt_class):
+            # then
+            # If class cid is predicted (with a val>threshold) in output of any of the batches 
+            if pred_class[pred_class>thresh].shape[0] > 0:
+                # then assign ap=0 since it is a wrong prediction
+                ap = 0
+            
+            # else assign ap=1 since the prediction is in line with gt
+            else:
+                ap = 1
+        
+        # else
+        else:
+            ap = average_precision_score(gt_class, pred_class)
+        
+        AP.append(ap)
+    
+    mAP = np.mean(AP)
+
+    return [mAP]
+    # return [0]
 
 
 def metric2(output, target):
     #TODO: Ignore for now - proceed till instructed
-    return [0]
+    from sklearn.metrics import recall_score
+    from sklearn.metrics import f1_score
+    from sklearn.metrics import fbeta_score
+    """
+    https://scikit-learn.org/stable/modules/classes.html#module-sklearn.metrics
+    https://apple.github.io/turicreate/docs/userguide/evaluation/classification.html
+    https://en.wikipedia.org/wiki/F1_score
+
+    Possible evaluation metrics for multi-object classification:
+        1. Precision-Recall: --> float
+            Precision - From the items that the classifier predicts as true, how many are actually true [TP/(TP+FP)]
+            Recall    - From all the true items, how many does the classifier predict true              [TP/(TP+FN)]
+                {
+                    Using recall as a metric in this case gives 1 very quickly since most labels are 0's and that's what the network learns
+                    to classify.
+                    Precision = 1.0 and Recall = 1.0 within 2 epochs
+                }
+        2. F-scores: -- float
+            F1     - Combines Precision and Recall through their Harmonic Mean [F1= HM=GM**2/AM; GM=sqrt(Precision*Recall), AM=mean(Precision,Recall)] 
+            F-beta - Combines Precision and Recall through their Harmonic Mean while assigning Recall \beta times the weight as Precision.
+                              (1+beta**2)*Precision * Recall
+                     F-beta = -------------------------------
+                               (beta**2)*Precision + Recall
+        3. Receiver Operating Characteristics (ROC) Curve: --> list[float], list[float]
+            Compute FalsePositiveRate & TruePositiveRate
+        4. Area under the Curve ROC Score: --> float
+            Computes AUC ROC score
+    """
+    # import pdb; pdb.set_trace()    
+    # criterion defines metric being used
+    criterion = f1_score
+    # Hyperparameter: threshold -- probability at which a predicted_class is labelled 0 or 1
+    thresh = 0.5
+
+    metric_list = []
+    nclasses = target.shape[1]
+    for cid in range(nclasses):
+        pred_class = output[:,cid].detach().cpu().numpy()
+        gt_class = target[:,cid].detach().cpu().numpy()
+
+        # If class cid does not appear in gt of any of the batches
+        if not np.any(gt_class):
+            # then
+            # If class cid is predicted (with a val>threshold) in output of any of the batches 
+            if pred_class[pred_class>thresh].shape[0] > 0:
+                # then assign ap=0 since it is a wrong prediction
+                metric = 0
+            
+            # else assign ap=1 since the prediction is in line with gt
+            else:
+                metric = 1
+        
+        # else
+        else:
+            # Converting continous predicted values to binary
+            binary_pred_class = np.where(pred_class>thresh, 1, 0)
+            if criterion is recall_score:
+                metric = criterion(gt_class, binary_pred_class)
+            elif criterion is f1_score:
+                metric = criterion(gt_class, binary_pred_class, average='macro')
+            elif criterion is fbeta_score:
+                metric = criterion(gt_class, binary_pred_class, beta=2)
+            else:
+                RuntimeError("Specify criterion from the given 3 choices or import necessary from sklearn.metrics")
+        
+        metric_list.append(metric)
+        
+    mean_metric = np.mean(metric_list)
+    return [mean_metric]
+    # return [0]
 
 
 if __name__ == '__main__':
