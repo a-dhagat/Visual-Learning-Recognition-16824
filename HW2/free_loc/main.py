@@ -123,8 +123,7 @@ best_prec1 = 0
 
 def main():
     # import pdb; pdb.set_trace()
-    # torch.manual_seed(42)
-    # np.random.seed(42)
+    
     global args, best_prec1
     args = parser.parse_args()
     args.distributed = args.world_size > 1
@@ -147,8 +146,8 @@ def main():
     # TODO:
     # define loss function (criterion) and optimizer
     # criterion = nn.CrossEntropyLoss().cuda()
-    torch.manual_seed(42)
-    np.random.seed(42)
+    torch.manual_seed(30)
+    np.random.seed(30)
     criterion = nn.BCELoss().cuda()
     # criterion = nn.MultiLabelSoftMarginLoss().cuda()
     # criterion = nn.MultiLabelMarginLoss()
@@ -270,8 +269,8 @@ def train(train_loader, model, criterion, optimizer, epoch, writer):
 
         target = target.type(torch.FloatTensor).cuda(async=True)
         # target = target.type(torch.LongTensor)
-        input_var = torch.autograd.Variable(input, requires_grad=True)
-        target_var = torch.autograd.Variable(target)
+        input_var = input
+        target_var = target
 
         # TODO: Get output from model
         output = model(input_var)
@@ -491,12 +490,12 @@ def metric2(output, target):
                 }
         2. F-scores: -- float
             F1     - Combines Precision and Recall through their Harmonic Mean [F1= HM=GM**2/AM; GM=sqrt(Precision*Recall), AM=mean(Precision,Recall)] 
-            F-beta - Combines Precision and Recall through their Harmonic Mean while assigning Recall \beta times the weight as Precision.
+            F-beta - Combines Precision and Recall through their Harmonic Mean while assigning Recall beta times the weight as Precision.
                               (1+beta**2)*Precision * Recall
                      F-beta = -------------------------------
                                (beta**2)*Precision + Recall
         3. Receiver Operating Characteristics (ROC) Curve: --> list[float], list[float]
-            Compute FalsePositiveRate & TruePositiveRate
+            Computes FalsePositiveRate & TruePositiveRate
         4. Area under the Curve ROC Score: --> float
             Computes AUC ROC score
     """
@@ -535,7 +534,7 @@ def metric2(output, target):
             elif criterion is fbeta_score:
                 metric = criterion(gt_class, binary_pred_class, beta=2)
             else:
-                RuntimeError("Specify criterion from the given 3 choices or import necessary from sklearn.metrics")
+                raise(RuntimeError("Specify criterion from the given 3 choices or import necessary from sklearn.metrics"))
         
         metric_list.append(metric)
         
