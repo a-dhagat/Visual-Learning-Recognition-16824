@@ -19,19 +19,23 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
-
+import pdb
 
 from datasets.factory import get_imdb
 from custom import *
 
 from tensorboardX import SummaryWriter
 
+val_flag = True
+
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
 
+                    
+
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('--arch', default='localizer_alexnet')
+parser.add_argument('--arch', default='localizer_alexnet_robust')
 parser.add_argument(
     '-j',
     '--workers',
@@ -120,6 +124,13 @@ parser.add_argument('--vis', action='store_true')
 
 best_prec1 = 0
 
+import visdom
+vis = visdom.Visdom(port='7097')
+
+visdom_transform = transforms.Compose([
+        transforms.Normalize(mean = [ 0., 0., 0. ],std = [ 1/0.229, 1/0.224, 1/0.225 ]),
+        transforms.Normalize(mean = [ -0.485, -0.456, -0.406 ],std = [ 1., 1., 1. ]),
+                               ])
 
 def main():
     # import pdb; pdb.set_trace()
@@ -146,10 +157,10 @@ def main():
     # TODO:
     # define loss function (criterion) and optimizer
     # criterion = nn.CrossEntropyLoss().cuda()
-    torch.manual_seed(30)
-    np.random.seed(30)
-    criterion = nn.BCELoss().cuda()
-    # criterion = nn.MultiLabelSoftMarginLoss().cuda()
+    # torch.manual_seed(30)
+    # np.random.seed(30)
+    # criterion = nn.BCELoss().cuda()
+    criterion = nn.MultiLabelSoftMarginLoss().cuda()
     # criterion = nn.MultiLabelMarginLoss()
     optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
@@ -214,10 +225,9 @@ def main():
     # TODO: Create loggers for visdom and tboard
     # TODO: You can pass the logger objects to train(), make appropriate
     # modifications to train()
-    writer = SummaryWriter('runs/Task_1.3')
-    if args.vis:
-        import visdom
-        vis = visdom.Visdom(port='8097')
+    writer = SummaryWriter('runs/Task_1.7')
+    # if args.vis:
+    
 
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -228,7 +238,7 @@ def main():
 
         # evaluate on validation set
         if epoch % args.eval_freq == 0 or epoch == args.epochs - 1:
-            m1, m2 = validate(val_loader, model, criterion, writer)
+            m1, m2 = validate(val_loader, model, criterion, writer, epoch)
             score = m1 * m2
             # remember best prec@1 and save checkpoint
             is_best = score > best_prec1
@@ -253,6 +263,7 @@ def func_output(output):
     return pool, sigm
 
 def train(train_loader, model, criterion, optimizer, epoch, writer):
+    # import pdb; pdb.set_trace()
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -278,8 +289,9 @@ def train(train_loader, model, criterion, optimizer, epoch, writer):
         # import pdb; pdb.set_trace()
         pool_operator, sigmoid_operator = func_output(output)
         pooled_output = pool_operator(output)
-        scaled_output = sigmoid_operator(pooled_output)
-        imoutput = scaled_output.squeeze()
+        imoutput = pooled_output.squeeze()
+        # scaled_output = sigmoid_operator(pooled_output)
+        # imoutput = scaled_output.squeeze()
         
         # TODO: Compute loss using ``criterion``
         loss = criterion(imoutput, target_var)
@@ -301,6 +313,8 @@ def train(train_loader, model, criterion, optimizer, epoch, writer):
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
+        batch_num = len(train_loader)
+        step = epoch*batch_num*32+(i+1)*32
 
         if i % args.print_freq == 0:
             print('Epoch: [{0}][{1}/{2}]\t'
@@ -317,25 +331,33 @@ def train(train_loader, model, criterion, optimizer, epoch, writer):
                       loss=losses,
                       avg_m1=avg_m1,
                       avg_m2=avg_m2))
-        writer.add_scalar("Loss/Train: ", loss.data[0], i)
-        writer.add_scalar("metric1/Train: ", m1[0], i)
-        writer.add_scalar("metric2/Train: ", m2[0], i)
+        writer.add_scalar("Loss_Train: ", loss.data[0], step)
+        writer.add_scalar("metric1_Train: ", m1[0], step)
+        writer.add_scalar("metric2_Train: ", m2[0], step)
         #TODO: Visualize things as mentioned in handout
         #TODO: Visualize at appropriate intervals
 
-
-
-
-
-
-
-
+        # import pdb; pdb.set_trace()
+        if epoch == 0 or epoch == 14 or epoch == 29:
+            if i == 4 or i == 6:
+                nums = np.random.choice(32,2,replace=False)
+                gt_cls1 = np.where(target[nums[0]]==1)[0][0]
+                gt_cls2 = np.where(target[nums[1]]==1)[0][0]
+                heatmap1_in = torch.sigmoid(output[nums[0],gt_cls1]).squeeze()
+                heatmap2_in = torch.sigmoid(output[nums[1],gt_cls2]).squeeze()
+                im1 = visdom_transform(input[nums[0]])
+                im2 = visdom_transform(input[nums[1]])
+                vis.image(im1, opts={'title':str(epoch)+"_"+str(i)+"_im1_"+str(gt_cls1)})
+                vis.heatmap(heatmap1_in, opts={'title':str(epoch)+"_"+str(i)+"_heatmap1_"+str(gt_cls1)})
+                vis.image(im2, opts={'title':str(epoch)+"_"+str(i)+"_im2_"+str(gt_cls2)})
+                vis.heatmap(heatmap2_in, opts={'title':str(epoch)+"_"+str(i)+"_heatmap2_"+str(gt_cls2)})
+                pdb.set_trace()
 
 
         # End of train()
 
 
-def validate(val_loader, model, criterion, writer):
+def validate(val_loader, model, criterion, writer, epoch):
     batch_time = AverageMeter()
     losses = AverageMeter()
     avg_m1 = AverageMeter()
@@ -372,6 +394,9 @@ def validate(val_loader, model, criterion, writer):
         batch_time.update(time.time() - end)
         end = time.time()
 
+        # batch_num = len(val_loader)
+        # step = epoch*batch_num*32+(i+1)*32
+
         if i % args.print_freq == 0:
             print('Test: [{0}/{1}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
@@ -387,9 +412,28 @@ def validate(val_loader, model, criterion, writer):
 
         #TODO: Visualize things as mentioned in handout
         #TODO: Visualize at appropriate intervals
-        writer.add_scalar("Loss/Validation: ", loss.data[0], i)
-        writer.add_scalar("metric1/Validation: ", m1[0], i)
-        writer.add_scalar("metric2/Validation: ", m2[0], i)
+        writer.add_scalar("Loss_Valid: ", loss.data[0], epoch)
+        writer.add_scalar("metric1_Valid: ", m1[0], epoch)
+        writer.add_scalar("metric2_Valid: ", m2[0], epoch)
+
+
+        if epoch>20:
+            nums = np.random.choice(10,3,replace=False)
+            gt_cls1 = np.where(target[nums[0]]==1)[0][0]
+            gt_cls2 = np.where(target[nums[1]]==1)[0][0]
+            gt_cls3 = np.where(target[nums[2]]==1)[0][0]
+            heatmap1_in = torch.sigmoid(output[nums[0],gt_cls1]).squeeze()
+            heatmap2_in = torch.sigmoid(output[nums[1],gt_cls2]).squeeze()
+            heatmap3_in = torch.sigmoid(output[nums[2],gt_cls3]).squeeze()
+            im1 = visdom_transform(input[nums[0]])
+            im2 = visdom_transform(input[nums[1]])
+            im3 = visdom_transform(input[nums[2]])
+            vis.image(im1, opts={'title':"valid"+"_"+str(i)+"_im1_"+str(gt_cls1)})
+            vis.heatmap(heatmap1_in, opts={'title':"valid"+"_"+str(i)+"_heatmap1_"+str(gt_cls1)})
+            vis.image(im2, opts={'title':"valid"+"_"+str(i)+"_im2_"+str(gt_cls2)})
+            vis.heatmap(heatmap2_in, opts={'"valid"+title':"_"+str(i)+"_heatmap2_"+str(gt_cls2)})
+            vis.image(im3, opts={'title':"valid"+"_"+str(i)+"_im2_"+str(gt_cls3)})
+            vis.heatmap(heatmap2_in, opts={'"valid"+title':"_"+str(i)+"_heatmap2_"+str(gt_cls3)})
 
 
 
@@ -459,8 +503,10 @@ def metric1(output, target):
         
         # else
         else:
+            pred_class -= 1e-5 * gt_class
             ap = average_precision_score(gt_class, pred_class)
         
+        # ap = average_precision_score(gt_class, pred_class)
         AP.append(ap)
     
     mAP = np.mean(AP)
