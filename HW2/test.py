@@ -20,6 +20,9 @@ from datasets.factory import get_imdb
 from fast_rcnn.config import cfg, cfg_from_file, get_output_dir
 
 import visdom
+
+# from tensorboardx import SummaryWriter
+
 # hyper-parameters
 # ------------
 imdb_name = 'voc_2007_test'
@@ -44,11 +47,13 @@ if rand_seed is not None:
 cfg_from_file(cfg_file)
 
 
-def vis_detections(im, class_name, dets, thresh=0.8):
+def vis_detections(im, class_name, dets, thresh=0.2):
     """Visual debugging of detections."""
     for i in range(np.minimum(10, dets.shape[0])):
         bbox = tuple(int(np.round(x)) for x in dets[i, :4])
         score = dets[i, -1]
+        # import pdb; pdb.set_trace()
+        # print(score)
         if score > thresh:
             cv2.rectangle(im, bbox[0:2], bbox[2:4], (0, 204, 0), 2)
             cv2.putText(
@@ -73,7 +78,7 @@ def im_detect(net, image, rois):
     im_info = np.array(
         [[im_data.shape[1], im_data.shape[2], im_scales[0]]], dtype=np.float32)
 
-    cls_prob = net(im_data, rois, im_info)
+    cls_prob = net(im_data, rois, im_info, train=False)
     scores = cls_prob.data.cpu().numpy()
     boxes = rois[:, 1:5] / im_info[0][2]
 
@@ -123,7 +128,7 @@ def test_net(name,
         _t['misc'].tic()
         if visualize:
             # im2show = np.copy(im[:, :, (2, 1, 0)])
-            im2show = np.copy(im)
+            im2show_im = np.copy(im)
 
         # skip j = 0, because it's the background class
         for j in xrange(1, imdb.num_classes + 1):
@@ -136,7 +141,7 @@ def test_net(name,
             keep = nms(cls_dets, cfg.TEST.NMS)
             cls_dets = cls_dets[keep, :]
             if visualize:
-                im2show = vis_detections(im2show, imdb.classes[j], cls_dets)
+                im2show = vis_detections(im2show_im, imdb.classes[newj], cls_dets)
             all_boxes[j][i] = cls_dets
 
         # Limit to max_per_image detections *over all classes*
@@ -157,7 +162,9 @@ def test_net(name,
             # TODO: Visualize here using tensorboard
             # TODO: use the logger that is an argument to this function
             print('Visualizing')
-
+            im2show_img = im2show[1:]
+            im2show_img = np.transpose(np.array(im2show_img), (2,0,1))
+            logger.add_image('test_'+str(i), im2show_img, i)
 
 
 
@@ -175,10 +182,10 @@ if __name__ == '__main__':
     # load data
     imdb = get_imdb(imdb_name)
     imdb.competition_mode(on=True)
-
+    # import pdb; pdb.set_trace()
     # load net
-    net = WSDDN(classes=imdb.classes, debug=False)
-    trained_model = trained_model_fmt.format(cfg.TRAIN.SNAPSHOT_PREFIX, 30000)
+    net = WSDDN(classes=imdb.classes, debug=False, training=False)
+    trained_model = trained_model_fmt.format(cfg.TRAIN.SNAPSHOT_PREFIX, 20000)
     print('Loading {}'.format(trained_model))
     network.load_net(trained_model, net)
     print('load model successfully!')
@@ -187,5 +194,9 @@ if __name__ == '__main__':
     net.eval()
 
     # evaluation
+    from tensorboardX import SummaryWriter
+
+    writer = SummaryWriter('runs/wsdnn_test_20000')
+
     aps = test_net(
-        save_name, net, imdb, max_per_image, thresh=thresh, visualize=False)
+        save_name, net, imdb, max_per_image, thresh=0.05, logger=writer, visualize=True)
