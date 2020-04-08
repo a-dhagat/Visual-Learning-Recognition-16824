@@ -48,27 +48,51 @@ class WSDDN(nn.Module):
 
     def __init__(self, classes=None, debug=False, training=True):
         super(WSDDN, self).__init__()
-
+        self.training = training
         if classes is not None:
             self.classes = classes
             self.n_classes = len(classes)
             print(classes)
 
         #TODO: Define the WSDDN model (look at faster_rcnn.py)
-
-
-
-
-
-
-
-
-
-
-
-
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=(11,11), stride=(4,4), padding=(2,2)),
+            nn.ReLU(),
+            # lambda x: F.relu(x, ),
+            nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False),
+            nn.Conv2d(64, 192, kernel_size=(5,5), stride=(1,1), padding=(2,2)),
+            nn.ReLU(),
+            # lambda x: F.relu(x, ),
+            nn.MaxPool2d(kernel_size=(3,3), stride=(2,2), dilation=(1,1), ceil_mode=False),
+            nn.Conv2d(192, 384, kernel_size=(3,3), stride=(1,1), padding=(1,1)),
+            nn.ReLU(),
+            # lambda x: F.relu(x, ),
+            nn.Conv2d(384, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1)),
+            nn.ReLU(),
+            # lambda x: F.relu(x, ),
+            nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1)),
+            nn.ReLU(),
+            # lambda x: F.relu(x, ),
+        )
+        self.roi_pool = RoIPool(6,6,1.0/16)
+        self.classifier = nn.Sequential(
+            nn.Dropout2d(),
+            nn.Linear(9216, 4096),
+            nn.ReLU(),
+            nn.Dropout2d(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(),
+            nn.Linear(4096,1000),
+        )
+        self.detection = nn.Sequential(nn.Linear(1000, 20))
+        self.recognition = nn.Sequential(nn.Linear(1000, 20))
+        # self.detection = nn.Sequential(nn.Linear(4096, 20))
+        # self.recognition = nn.Sequential(nn.Linear(4096, 20))
+        # self.combined_pool = nn.MaxPool2d()
+        
 
         # loss
+        # import torch.nn.functional as F
         self.cross_entropy = None
 
         # for log
@@ -85,27 +109,44 @@ class WSDDN(nn.Module):
                 gt_vec=None,
                 gt_boxes=None,
                 gt_ishard=None,
-                dontcare_areas=None):
+                dontcare_areas=None,
+                train=True):
         im_data = torch.from_numpy(im_data).cuda().requires_grad_(False)
         im_data = im_data.permute(0, 3, 1, 2)
         rois = torch.from_numpy(rois).float().cuda()
-
+        # import pdb; pdb.set_trace()
         #TODO: Use im_data and rois as input
         # compute cls_prob which are N_roi X 20 scores
         # Checkout faster_rcnn.py for inspiration
+        features = self.features(im_data)
+        # print(features.shape)
+        roi_pooled_features = self.roi_pool(features, rois)
+        # print(roi_pooled_features.shape)
+        roi_pooled_features = roi_pooled_features.view(roi_pooled_features.size()[0], -1)
+        # print(roi_pooled_features.shape)
+        out = self.classifier(roi_pooled_features)
+        # print(out.shape)
+        recog = self.recognition(out)
+        detect = self.detection(out)
+        recog_softmax = F.softmax(recog, dim=1)
+        detect_softmax = F.softmax(detect, dim=0)
+        # print(recog_softmax.shape)
+        # print(detect_softmax.shape)
+        region_score = recog_softmax*detect_softmax
+        image_score = torch.sum(region_score, dim=0)
+        # print(region_score.shape)
+        # print(image_score.shape)
+        cls_prob = image_score.clone()
+        cls_prob = cls_prob.view(-1, self.n_classes)
+        # print(cls_prob.shape)
 
-
-
-
-
-
-
-
-
-        if self.training:
-            label_vec = torch.from_numpy(gt_vec).cuda().float()
-            label_vec = label_vec.view(self.n_classes, -1)
-            self.cross_entropy = self.build_loss(cls_prob, label_vec)
+        if train:
+        # quit()
+            if self.training:
+                label_vec = torch.from_numpy(gt_vec).cuda().float()
+                # label_vec = label_vec.view(self.n_classes, -1)
+                label_vec = label_vec.view(-1,self.n_classes)
+                self.cross_entropy = self.build_loss(cls_prob, label_vec)
         return cls_prob
 
     def build_loss(self, cls_prob, label_vec):
@@ -118,19 +159,13 @@ class WSDDN(nn.Module):
         """
         #TODO: Compute the appropriate loss using the cls_prob that is the
         #output of forward()
-        #Checkout forward() to see how it is called 
-
-
-
-
-
-
-
-
-
-
-
+        #Checkout forward() to see how it is called
+        # loss = nn.BCELoss()
+        # bceloss = loss(cls_prob, label_vec)
+        
+        bceloss = F.binary_cross_entropy(cls_prob, label_vec)
         return bceloss
+
 
     def detect(self, image, rois, thr=0.3):
         im_data, im_scales = self.get_image_blob(image)
