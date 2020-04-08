@@ -130,42 +130,62 @@ class LocalizerAlexNet(nn.Module):
             # lambda x: F.relu(x, inplace=True),
             nn.Conv2d(256, 20, kernel_size=(1,1), stride=(1,1)),
         )
+        
 
 
     def forward(self, x):
         #TODO: Define forward pass
         x = self.features(x)
+        # print(x.shape)
+        # quit()
         x = self.classifier(x)
         return x
 
 
 
-class LocalizerAlexNetHighres(nn.Module):
+class LocalizerAlexNetRobust(nn.Module):
     def __init__(self, num_classes=20):
-        super(LocalizerAlexNetHighres, self).__init__()
+        super(LocalizerAlexNetRobust, self).__init__()
         #TODO: Ignore for now until instructed
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=(11,11), stride=(4,4), padding=(2,2)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.AvgPool2d(kernel_size=(3,3), stride=(2,2), ceil_mode=False),
+            nn.Conv2d(64, 192, kernel_size=(5,5), stride=(1,1), padding=(2,2)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.AvgPool2d(kernel_size=(3,3), stride=(2,2), ceil_mode=False),
+            nn.Conv2d(192, 384, kernel_size=(3,3), stride=(1,1), padding=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.Conv2d(384, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1), padding=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+        )
 
-
-
-
-
-
-
+        self.classifier = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.Conv2d(256, 256, kernel_size=(1,1), stride=(1,1)),
+            nn.ReLU(inplace=True),
+            # lambda x: F.relu(x, inplace=True),
+            nn.Conv2d(256, 20, kernel_size=(1,1), stride=(1,1)),
+        )
 
 
     def forward(self, x):
         #TODO: Ignore for now until instructed
-
-
-
-
-
-
-
-
-
-
+        x = self.features(x)
+        # print(x.shape)
+        # quit()
+        x = self.classifier(x)
         return x
+
 
 
 
@@ -225,23 +245,64 @@ def localizer_alexnet(pretrained=False, **kwargs):
 
 
 def localizer_alexnet_robust(pretrained=False, **kwargs):
-    r"""AlexNet model architecture from the
-    `"One weird trick..." <https://arxiv.org/abs/1404.5997>`_ paper.
+    import torchvision
+    from torch.nn.parameter import Parameter
 
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
     model = LocalizerAlexNetRobust(**kwargs)
-    #TODO: Ignore for now until instructed
+    #TODO: Initialize weights correctly based on whethet it is pretrained or
+    # not
+    print(pretrained)
+    if pretrained:
+        print("Pretrain true\n")
+        alexnet = torchvision.models.alexnet(pretrained=True)
+        alexnet_pretrained = alexnet.state_dict()
+        
+        """
+        https://discuss.pytorch.org/t/how-to-load-part-of-pre-trained-model/1113
+        """
+        print("Loading features:\n")
+        own_state = model.state_dict()
+        for name, param in alexnet_pretrained.items():
+            if name not in own_state:
+                # print("Not in own state ", name)
+                continue
+            if isinstance(param, Parameter):
+                param = param.data
+        
+            # Only need to retain/copy pretrained weights of features sequential, not classifier sequential
+            if 'features' in name:
+                own_state[name].copy_(param)
+                print(name)
 
+    else:
+        """
+        https://discuss.pytorch.org/t/how-to-fix-define-the-initialization-weights-seed/20156
+        """
 
-
-
-
-
-
-
+        for feature_layer in model.features:
+            if isinstance(feature_layer, nn.Conv2d):
+                nn.init.xavier_normal_(feature_layer.weight.data)
+    
+    for classif_layer in model.classifier:
+        if isinstance(classif_layer, nn.Conv2d):
+            print(classif_layer)
+            nn.init.xavier_normal_(classif_layer.weight.data)
+    
     return model
+
+def forward(self, x):
+        #TODO: Ignore for now until instructed
+
+
+
+
+
+
+
+
+
+
+        return x
 
 
 
@@ -302,13 +363,13 @@ class IMDBDataset(data.Dataset):
         import torch
         target = torch.from_numpy(np.zeros(len(self.classes)))
         for i in gt_classes:
-            if i < len(self.classes):
-                target[i] = 1.0
+            # if i < len(self.classes):
+            target[i-1] = 1.0
         # target = target.astype(np.uint8)
-        if self.transform is not None:
-            img = self.transform(img)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
+        # if self.transform is not None:
+        img = self.transform(img)
+        # if self.target_transform is not None:
+        #     target = self.target_transform(target)
         
         return img, target
 
